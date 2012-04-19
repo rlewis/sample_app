@@ -6,10 +6,20 @@ describe UsersController do
   describe "GET 'index'" do
 
     describe "for non-signed-in users" do
-      it "should deny access" do
+      # it "should deny access" do
+        # get :index
+        # response.should redirect_to(signin_path)
+      # end
+      
+      it "should have an element for each public user" do
         get :index
-        response.should redirect_to(signin_path)
+        User.paginate(:page => 1).each do |user|
+            if user.is_public
+                response.should have_selector('li', :content => user.name)
+            end
+        end
       end
+      
     end
     
     describe "for signed-in-users" do
@@ -70,69 +80,94 @@ describe UsersController do
   end
 
   describe "GET 'show'" do
+
+    describe "for non-signed-in users" do
     
-    before(:each) do
-      @user = Factory(:user)
+        before(:each) do
+            @user = Factory(:user)
+        end
+        
+        it "should deny access to private profiles" do
+            if !@user.is_public
+                get :show, :id => @user
+                response.should :file => "public/401.html", :status => :unauthorized
+            end
+        end
     end
   
-    it "should be successful" do
-      get :show, :id => @user
-      response.should be_success
-    end
+    describe "for signed-in-users" do
     
-    it "should find the right user" do
-      get :show, :id => @user
-      assigns(:user).should == @user
-    end
-    
-    it "should have the right title" do
-      get :show, :id => @user
-      response.should have_selector('title', :content => @user.name)
-    end
-    
-    it "should have the user's name" do
-      get :show, :id => @user
-      response.should have_selector('h1', :content => @user.name)
-    end
-    
-    it "should have a profile image" do
-      get :show, :id => @user
-      response.should have_selector('h1>img', :class => "gravatar")
-    end
-    
-    it "should have the right URL" do
-      get :show, :id => @user
-      response.should have_selector('td>a', :content => user_path(@user),
-                                            :href    => user_path(@user))
-    end
-    
-    it "should show the user's microposts" do
-      mp1 = Factory(:micropost, :user => @user, :content => "Foo bar")
-      mp2 = Factory(:micropost, :user => @user, :content => "Baz quux")
-      get :show, :id => @user
-      response.should have_selector('span.content', :content => mp1.content)
-      response.should have_selector('span.content', :content => mp2.content)
-    end
-    
-    it "should paginate microposts" do
-      35.times { Factory(:micropost, :user => @user, :content => "foo") }
-      get :show, :id => @user
-      response.should have_selector('div.pagination')
-    end
-    
-    it "should display the micropost count" do
-      10.times { Factory(:micropost, :user => @user, :content => "foo") }
-      get :show, :id => @user
-      response.should have_selector('td.sidebar',
-                                    :content => @user.microposts.count.to_s)
-    end
-    
-    describe "when signed in as another user" do
-      it "should be successful" do
-        test_sign_in(Factory(:user, :email => Factory.next(:email)))
-        get :show, :id => @user
-        response.should be_success
-      end
+        before(:each) do
+          # @user = Factory(:user)
+            @user = test_sign_in(Factory(:user))
+            @second = Factory(:user, :name => "Bob", :email => "another@example.com")
+            third  = Factory(:user, :name => "Ben", :email => "another@example.net")
+        end
+      
+        it "should be successful" do
+          get :show, :id => @user
+          response.should be_success
+        end
+        
+        it "should be successful" do
+            get :show, :id => @second
+            response.should be_success
+        end
+        
+        it "should find the right user" do
+          get :show, :id => @user
+          assigns(:user).should == @user
+        end
+        
+        it "should have the right title" do
+          get :show, :id => @user
+          response.should have_selector('title', :content => @user.name)
+        end
+        
+        it "should have the user's name" do
+          get :show, :id => @user
+          response.should have_selector('h1', :content => @user.name)
+        end
+        
+        it "should have a profile image" do
+          get :show, :id => @user
+          response.should have_selector('h1>img', :class => "gravatar")
+        end
+        
+        it "should have the right URL" do
+          get :show, :id => @user
+          response.should have_selector('td>a', :content => user_path(@user),
+                                                :href    => user_path(@user))
+        end
+        
+        it "should show the user's microposts" do
+          mp1 = Factory(:micropost, :user => @user, :content => "Foo bar")
+          mp2 = Factory(:micropost, :user => @user, :content => "Baz quux")
+          get :show, :id => @user
+          response.should have_selector('span.content', :content => mp1.content)
+          response.should have_selector('span.content', :content => mp2.content)
+        end
+        
+        it "should paginate microposts" do
+          35.times { Factory(:micropost, :user => @user, :content => "foo") }
+          get :show, :id => @user
+          response.should have_selector('div.pagination')
+        end
+        
+        it "should display the micropost count" do
+          10.times { Factory(:micropost, :user => @user, :content => "foo") }
+          get :show, :id => @user
+          response.should have_selector('td.sidebar',
+                                        :content => @user.microposts.count.to_s)
+        end
+        
+        describe "when signed in as another user" do
+          it "should be successful" do
+            test_sign_in(Factory(:user, :email => Factory.next(:email)))
+            get :show, :id => @user
+            response.should be_success
+          end
+        end
     end
   end
 
@@ -240,7 +275,7 @@ describe UsersController do
       
       before(:each) do
         @attr = { :name => "", :email => "", :password => "",
-                  :password_confirmation => "" }
+                  :password_confirmation => "", :is_public => "" }
       end
       
       it "should render the 'edit' page" do
@@ -258,7 +293,7 @@ describe UsersController do
       
       before(:each) do
         @attr = { :name => "New Name", :email => "user@example.org",
-                  :password => "barbaz", :password_confirmation => "barbaz" }
+                  :password => "barbaz", :password_confirmation => "barbaz", :is_public => "false" }
       end
       
       it "should change the user's attributes" do
@@ -267,6 +302,7 @@ describe UsersController do
         @user.name.should  == @attr[:name]
         @user.email.should == @attr[:email]
         @user.encrypted_password.should == assigns(:user).encrypted_password
+        @user.is_public.should == @attr[:is_public]
       end
       
       it "should have a flash message" do
