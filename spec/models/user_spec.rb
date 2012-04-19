@@ -154,6 +154,20 @@ describe User do
     end
   end
   
+  describe "is_public attribute" do
+    before(:each) do
+       @user = User.create!(@attr)
+    end
+
+    it "should respond to is_public" do
+        @user.should respond_to(:public)
+    end
+
+    it "should default to private" do
+        @user.should_not be_public
+    end
+  end
+  
   describe "admin attribute" do
     
     before(:each) do

@@ -19,7 +19,6 @@ describe UsersController do
             end
         end
       end
-      
     end
     
     describe "for signed-in-users" do
@@ -262,6 +261,11 @@ describe UsersController do
       response.should have_selector('a', :href => 'http://gravatar.com/emails',
                                          :content => "change")
     end
+    
+    it "should have is_public checkbox" do
+        get :edit, :id => @user
+        response.should have_selector("input", :type => "checkbox", :name => is_public)
+    end    
   end
 
   describe "PUT 'update'" do
