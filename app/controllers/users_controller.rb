@@ -1,19 +1,35 @@
 class UsersController < ApplicationController
   before_filter :authenticate,
-                :only => [:index, :edit, :update, :destroy,
+                :only => [:edit, :update, :destroy,
                           :followers, :following]
   before_filter :correct_user, :only => [:edit, :update]
   before_filter :admin_user,   :only => :destroy
   
   def index
-    @users = User.paginate(:page => params[:page])
+    # @users = User.paginate(:page => params[:page])
     @title = "All users"
+		if signed_in?
+ 	  	@get_Users = User.all # All public and private
+		else
+			@get_Users = User.find_all_by_is_public(true)
+		end
+			@users = @get_Users.paginate(:page => params[:page])
   end
   
   def show
-    @user = User.find(params[:id])
-    @microposts = @user.microposts.paginate(:page => params[:page])
-    @title = @user.name
+		if signed_in?
+    	@user = User.find(params[:id])
+    	@microposts = @user.microposts.paginate(:page => params[:page])
+    	@title = @user.name
+		else
+			if ( User.find(params[:id]).is_public )
+				@user = User.find(params[:id])
+    		@microposts = @user.microposts.paginate(:page => params[:page])
+    		@title = @user.name
+			else
+				deny_access
+			end
+		end
   end
 
   def following
